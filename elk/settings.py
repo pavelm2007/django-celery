@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'teachers',  # teachers database
     'acc',   # acc — loggin in and out, homepage
     'mailer',
+    'notifications',
     'extevents',  # integrations with external calendars, like Google's one
     'accounting',  # teacher accounting — passed classes, customer inspired cancellation etc
     'payments',  # students payment processing
@@ -173,6 +174,7 @@ SUIT_CONFIG = {
         {'app': 'lessons', 'icon': 'icon-headphones', 'label': 'Teaching', 'models': ('lessons.Language', 'lessons.PairedLesson', 'lessons.MasterClass', 'lessons.HappyHour')},
         {'app': 'products', 'icon': 'icon-list', 'label': 'Products'},
         {'app': 'auth', 'label': 'Authorization', 'icon': 'icon-lock', 'models': ('auth.User', 'auth.Group')},
+        {'app': 'notifications', 'label': 'Notifications', 'icon': 'icon-envelope', 'models': ('notifications.Notification',)},
     ),
 }
 IMAGE_CROPPING_JQUERY_URL = None
@@ -321,6 +323,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'accounting.tasks.bill_timeline_entries',
         'schedule': timedelta(minutes=1),
     },
+    'periodic_notifications': {
+        'task': 'notifications.tasks.notify_passed_more_one_week',
+        'schedule': timedelta(hours=12)
+    }
 }
 
 

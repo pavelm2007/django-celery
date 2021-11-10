@@ -1,3 +1,4 @@
+import datetime
 from abc import abstractproperty
 from datetime import timedelta
 
@@ -7,12 +8,14 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, ExpressionWrapper, DurationField, OuterRef, Subquery, DateTimeField
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from djmoney.models.fields import MoneyField
 
 from market import exceptions, signals
-
+from notifications.models import Notification
+from timeline.models import Entry as TimelineEntry
 MARK_CLASSES_AS_USED_AFTER = timedelta(hours=1)
 
 
@@ -81,6 +84,41 @@ class SubscriptionManager(ProductContainerManager):
         ).filter(
             Q(first_lesson_date__lte=edge_date) | Q(first_lesson_date__isnull=True, buy_date__lte=edge_date)
         )
+
+    def notify_passed_more_n_week(self, weeks=1):
+        """
+        Selection of records to notify that the last lesson was more than N weeks.
+
+        Calculate the datetime of the last lesson and whether or
+        not a notification was sent for this subscription.
+        """
+        now = timezone.now()
+        prev_week = now - datetime.timedelta(weeks=weeks)
+        entries = TimelineEntry.objects.filter(
+            classes__subscription__pk=OuterRef("pk"),
+            is_finished=True
+        ).order_by("-end")
+
+        return self.get_queryset().filter(
+            is_fully_used=False
+        ).filter(
+            classes__timeline__isnull=False,
+            classes__timeline__is_finished=True
+        ).annotate(
+            expiration_date_at=ExpressionWrapper(F('buy_date') + F('duration'), output_field=DateTimeField())
+        ).annotate(
+            _last_lesson_date=Subquery(entries.values('start')[:1]),
+            last_lesson_date=Coalesce(F('_last_lesson_date'), now),
+            passed_time=ExpressionWrapper(now - F('last_lesson_date'), output_field=DurationField())
+        ).filter(
+            expiration_date_at__gt=now,
+            passed_time__gte=datetime.timedelta(weeks=weeks)
+        ).exclude(
+            Q(
+                customer__notifications__created_at__gt=prev_week,
+                customer__notifications__type_notify=Notification.EVENT_TYPE_PASSED_MORE_ONE_WEEK
+            )
+        ).distinct()
 
 
 class Subscription(ProductContainer):

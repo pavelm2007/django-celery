@@ -1,0 +1,12 @@
+{% extends "mail_templated/base.tpl" %}
+{% load humanize %}
+
+{% block subject %}
+{{ c.customer.first_name | capfirst }}
+{% endblock %}
+
+{% block body %}
+Dear {{ c.customer.first_name | capfirst }}.
+
+{% include 'mailer/_signature.html' %}
+{% endblock %}

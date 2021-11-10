@@ -106,6 +106,7 @@ node_modules/
 # editor
 elk.sublime-project
 elk.sublime-workspace
+.idea/*
 
 dashboard.sublime-workspace
 
